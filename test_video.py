@@ -7,12 +7,12 @@ Created on Mon Oct 31 01:05:59 2016
 
 #importing some useful packages
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+#import matplotlib.image as mpimg
 import numpy as np
 import cv2
 #%matplotlib inline
 
-import math
+#import math
 
 def grayscale(img):
     """Applies the Grayscale transform
@@ -105,7 +105,7 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
 
 # Import everything needed to edit/save/watch video clips
 from moviepy.editor import VideoFileClip
-from IPython.display import HTML
+#from IPython.display import HTML
 
 
 def get_mb(x1, y1, x2, y2):
@@ -115,15 +115,16 @@ def get_mb(x1, y1, x2, y2):
     b = y1 - m * x1
     return m, b
 
-#gr_x1, gr_x2, gr_y1 = 400, 700, 300
-#gl_x1, gl_x2, gl_y1 = 330, 100, 300
+gr_x1, gr_x2, gr_y1 = 0, 0, 0
+gl_x1, gl_x2, gl_y1 = 0, 0, 0
 
 def process_image(image):
     # NOTE: The output you return should be a color image (3 channel) for processing video below
     # TODO: put your pipeline here,
     # you should return the final output (image with lines are drawn on lanes)
 
-#    global gr_x1, gr_x2, gr_y1, gl_x1, gl_x2, gl_y1
+    global gr_x1, gr_x2, gr_y1, gl_x1, gl_x2, gl_y1
+    
     gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     plt.imshow(gray, cmap='gray')
 
@@ -188,52 +189,58 @@ def process_image(image):
             #print((x1,y1), (x2,y2))
             m,b = get_mb(x1,y1,x2,y2)
             if m > 0:
-                right_line_m.append(m)
-                right_line_b.append(b)
-                right_line_y += [y1,y2]
+                if m > 0.53 and m < 0.67:
+                    right_line_m.append(m)
+                    right_line_b.append(b)
+                    right_line_y += [y1,y2]
             else:
-                left_line_m.append(m)
-                left_line_b.append(b)
-                left_line_y += [y1,y2]
+                if m > -0.81 and m < -0.66:
+                    left_line_m.append(m)
+                    left_line_b.append(b)
+                    left_line_y += [y1,y2]
             #print(m,b)
-            #cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),1)
+            cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),1)
             #plt.imshow(line_image)
             #plt.show()
     right_m = np.mean(right_line_m)
     right_b = np.mean(right_line_b)
-    right_y1 = min(right_line_y + [333])
+    right_y1 = max(min(right_line_y + [int(y_max*0.616)]),int(y_max*0.555))
     left_m = np.mean(left_line_m)
     left_b = np.mean(left_line_b)
-    left_y1 = min(left_line_y + [333])
+    left_y1 = max(min(left_line_y + [int(y_max*0.616)]),int(y_max*0.555))
     #print('right:',right_m,right_b,right_y1)
     #print('left:',left_m,left_b,left_y1)
     # right line
-    if len(right_line_m) > 0 and right_m != 0:
+    if right_line_m:
         right_x1 = int((right_y1 - right_b) / right_m)
         right_x2 = int((y_max - right_b) / right_m)
+        cv2.line(line_image,(right_x1,right_y1),(right_x2,y_max),(0,255,0),3)
+        gr_x1 = right_x1
+        gr_x2 = right_x2
+        gr_y1 = right_y1
     else:
-        right_x1 = right_x2 = 0
-        right_y1 = y_max
-    cv2.line(line_image,(right_x1,right_y1),(right_x2,y_max),(0,255,0),5)
+        cv2.line(line_image,(gr_x1,gr_y1),(gr_x2,y_max),(0,255,0),3)
     #plt.imshow(line_image)
     #plt.show()
     # left line
-    if len(left_line_m) > 0 and left_m != 0:
+    if left_line_m:
         left_x1 = int((left_y1 - left_b) / left_m)
         left_x2 = int((y_max - left_b) / left_m)
+        cv2.line(line_image,(left_x1,left_y1),(left_x2,y_max),(0,255,0),3)
+        gl_x1 = left_x1
+        gl_x2 = left_x2
+        gl_y1 = left_y1
     else:
-        left_x1 = left_x2 = 0
-        left_y1 = y_max
-    cv2.line(line_image,(left_x1,left_y1),(left_x2,y_max),(0,255,0),5)
+        cv2.line(line_image,(gl_x1,gl_y1),(gl_x2,y_max),(0,255,0),3)
     #plt.imshow(line_image)
     #plt.show()
 
 
     # Create a "color" binary image to combine with line image
-    color_edges = np.dstack((edges, edges, edges))
+    #color_edges = np.dstack((edges, edges, edges))
 
     # Draw the lines on the edge image
-    lines_edges = cv2.addWeighted(image, 0.55, line_image, 1, 0)
+    lines_edges = cv2.addWeighted(image, 0.77, line_image, 1, 0)
 
     return lines_edges
 
@@ -244,13 +251,13 @@ white_clip = clip1.fl_image(process_image) #NOTE: this function expects color im
 white_clip.write_videofile(white_output, audio=False)
 
 yellow_output = 'yellow.mp4'
-clip1 = VideoFileClip("solidYellowLeft.mp4")
-yellow_clip = clip1.fl_image(process_image) #NOTE: this function expects color images!!
+clip2 = VideoFileClip('solidYellowLeft.mp4')
+yellow_clip = clip2.fl_image(process_image)
 yellow_clip.write_videofile(yellow_output, audio=False)
 
-challenge_output = 'challres.mp4'
-clip1 = VideoFileClip("challenge.mp4")
-challenge_clip = clip1.fl_image(process_image) #NOTE: this function expects color images!!
+challenge_output = 'extra.mp4'
+clip3 = VideoFileClip('challenge.mp4')
+challenge_clip = clip3.fl_image(process_image)
 challenge_clip.write_videofile(challenge_output, audio=False)
 
 
